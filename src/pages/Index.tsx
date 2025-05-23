@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { TopNav } from "@/components/layout/TopNav";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -166,7 +167,7 @@ const Index = () => {
             </div>
 
             <div className="mt-6 grid gap-6 md:grid-cols-2">
-              <ActivityChart emptyState={false} />
+              <ActivityChart emptyState={true} />
               <AppUsageList />
             </div>
           </TabsContent>

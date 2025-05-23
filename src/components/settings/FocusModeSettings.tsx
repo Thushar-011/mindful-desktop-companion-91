@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -43,6 +44,9 @@ export function FocusModeSettings() {
   const [previewText, setPreviewText] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // State to prevent repetitive timer notifications
+  const [lastTimerUpdateTime, setLastTimerUpdateTime] = useState<number>(0);
+  
   // Update editing text when customText changes
   useEffect(() => {
     if (customText) {
@@ -68,16 +72,32 @@ export function FocusModeSettings() {
     if (newApp.trim()) {
       addToWhitelist(newApp.trim());
       setNewApp("");
+      // Show toast with shorter duration
+      toast.success(`Added ${newApp.trim()} to whitelist`, {
+        duration: 2500, // 2.5 seconds
+      });
     } else if (currentActiveApp) {
       addToWhitelist(currentActiveApp);
+      toast.success(`Added ${currentActiveApp} to whitelist`, {
+        duration: 2500, // 2.5 seconds
+      });
     }
   };
   
   const handleAddCurrentApp = () => {
     if (currentActiveApp) {
       addToWhitelist(currentActiveApp);
-      toast.success(`Added ${currentActiveApp} to whitelist`);
+      toast.success(`Added ${currentActiveApp} to whitelist`, {
+        duration: 2500, // 2.5 seconds
+      });
     }
+  };
+  
+  const handleRemoveFromWhitelist = (appName: string) => {
+    removeFromWhitelist(appName);
+    toast.success(`Removed ${appName} from whitelist`, {
+      duration: 2500, // 2.5 seconds
+    });
   };
   
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -86,13 +106,17 @@ export function FocusModeSettings() {
       
       // Validate file is an image
       if (!file.type.startsWith('image/')) {
-        toast.error('Please upload an image file (PNG, JPG, WebP)');
+        toast.error('Please upload an image file (PNG, JPG, WebP)', {
+          duration: 3000,
+        });
         return;
       }
       
       // Check file size (5MB limit)
       if (file.size > 5 * 1024 * 1024) {
-        toast.error('Image is too large (max 5MB)');
+        toast.error('Image is too large (max 5MB)', {
+          duration: 3000,
+        });
         return;
       }
       
@@ -101,7 +125,9 @@ export function FocusModeSettings() {
       updateCustomImage(imageUrl);
       
       setShowImageDialog(false);
-      toast.success('Image updated successfully');
+      toast.success('Image updated successfully', {
+        duration: 2500,
+      });
       
       // Show preview after a short delay
       setTimeout(() => {
@@ -118,22 +144,57 @@ export function FocusModeSettings() {
   
   const clearCustomImage = () => {
     updateCustomImage(null);
-    toast.info('Image removed');
+    toast.info('Image removed', {
+      duration: 2500,
+    });
   };
   
   const handleUpdateCustomText = () => {
+    const now = Date.now();
+    // Prevent repetitive notifications within 3 seconds
+    if (now - lastTimerUpdateTime < 3000) {
+      return;
+    }
+    
     if (editingText) {
       // Format the text to include the system message
       const fullText = formatFullText(editingText);
       updateCustomText(fullText);
       
-      toast.success('Message updated');
+      setLastTimerUpdateTime(now);
+      toast.success('Message updated', {
+        duration: 2500,
+      });
       
       // Show preview after updating text
       setTimeout(() => {
         testFocusModePopup();
       }, 500);
     }
+  };
+  
+  const handleToggleFocusMode = () => {
+    const now = Date.now();
+    // Prevent repetitive notifications within 3 seconds
+    if (now - lastTimerUpdateTime < 3000) {
+      toggleFocusMode();
+      return;
+    }
+    
+    toggleFocusMode();
+    setLastTimerUpdateTime(now);
+  };
+  
+  const handleToggleDimOption = () => {
+    const now = Date.now();
+    // Prevent repetitive notifications within 3 seconds
+    if (now - lastTimerUpdateTime < 3000) {
+      toggleDimOption();
+      return;
+    }
+    
+    toggleDimOption();
+    setLastTimerUpdateTime(now);
   };
   
   return (
@@ -158,7 +219,7 @@ export function FocusModeSettings() {
             <Switch 
               id="focus-mode" 
               checked={isFocusMode} 
-              onCheckedChange={toggleFocusMode}
+              onCheckedChange={handleToggleFocusMode}
             />
           </div>
 
@@ -172,7 +233,7 @@ export function FocusModeSettings() {
             <Switch 
               id="dim-mode" 
               checked={dimInsteadOfBlock} 
-              onCheckedChange={toggleDimOption}
+              onCheckedChange={handleToggleDimOption}
             />
           </div>
         </div>
@@ -372,7 +433,7 @@ export function FocusModeSettings() {
                   <Button 
                     variant="ghost" 
                     size="sm" 
-                    onClick={() => removeFromWhitelist(app)}
+                    onClick={() => handleRemoveFromWhitelist(app)}
                   >
                     <X className="h-4 w-4" />
                   </Button>
