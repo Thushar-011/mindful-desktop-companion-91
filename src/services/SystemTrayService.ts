@@ -13,6 +13,7 @@ class SystemTrayService {
   private notificationCooldown: number = 180000;
   private notificationThrottleMap: Map<string, number> = new Map();
   private notificationThrottleTime: number = 500; // Reduced throttle time
+  private processedNotifications: Set<string> = new Set(); // Add missing property
   
   // Screen time tracking variables
   private screenTimeStart: number = 0;
@@ -821,6 +822,7 @@ class SystemTrayService {
   
   public resetNotifications(): void {
     this.notificationThrottleMap.clear();
+    this.processedNotifications.clear(); // Also clear processed notifications
   }
 }
 
