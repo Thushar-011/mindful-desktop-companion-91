@@ -1,4 +1,3 @@
-
 // This service handles system tray functionality and active window monitoring
 
 class SystemTrayService {
@@ -744,6 +743,54 @@ class SystemTrayService {
   public resetNotifications(): void {
     this.processedNotifications.clear();
     this.notificationThrottleMap.clear();
+  }
+
+  // Add missing preference methods
+  public async loadPreferences(userId: string): Promise<any> {
+    try {
+      const userPrefsKey = `preferences_${userId}`;
+      const savedPrefs = localStorage.getItem(userPrefsKey);
+      
+      if (savedPrefs) {
+        return JSON.parse(savedPrefs);
+      }
+      
+      // Try to fetch from API if available
+      if (this.apiBaseUrl) {
+        const response = await fetch(`${this.apiBaseUrl}/preferences/${userId}`);
+        if (response.ok) {
+          const preferences = await response.json();
+          // Cache in localStorage
+          localStorage.setItem(userPrefsKey, JSON.stringify(preferences));
+          return preferences;
+        }
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Failed to load preferences:', error);
+      return null;
+    }
+  }
+
+  public async savePreferences(userId: string, preferences: any): Promise<void> {
+    try {
+      const userPrefsKey = `preferences_${userId}`;
+      localStorage.setItem(userPrefsKey, JSON.stringify(preferences));
+      
+      // Try to save to API if available
+      if (this.apiBaseUrl) {
+        await fetch(`${this.apiBaseUrl}/preferences/${userId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(preferences),
+        });
+      }
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+    }
   }
 }
 
