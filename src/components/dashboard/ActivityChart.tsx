@@ -23,9 +23,6 @@ interface ActivityChartProps {
 }
 
 export function ActivityChart({ title = "Daily Activity", className, emptyState = true }: ActivityChartProps) {
-  // Always show empty state for now until real tracking data is implemented
-  const shouldShowEmptyState = true;
-
   return (
     <Card className={className}>
       <CardHeader>
@@ -33,14 +30,11 @@ export function ActivityChart({ title = "Daily Activity", className, emptyState 
       </CardHeader>
       <CardContent>
         <div className="h-[300px]">
-          {shouldShowEmptyState ? (
+          {emptyState ? (
             <div className="flex h-full flex-col items-center justify-center">
               <p className="text-muted-foreground">No activity data yet</p>
               <p className="text-xs text-muted-foreground mt-2">
-                Data will appear as you use the application throughout the day
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Charts will start showing your actual productivity patterns
+                Data will appear as you use the application
               </p>
             </div>
           ) : (
