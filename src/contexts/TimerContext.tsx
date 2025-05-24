@@ -1,4 +1,5 @@
-import { createContext, useContext, useEffect, useState } from "react";
+
+import { createContext, useContext, useEffect, useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { toast as sonnerToast } from "sonner";
 
@@ -44,6 +45,9 @@ const TimerContext = createContext<TimerContextState | undefined>(undefined);
 
 export function TimerProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
+  
+  // Ref to track if settings are being updated programmatically
+  const isUpdatingSettingsRef = useRef(false);
   
   // Pomodoro Timer state
   const [pomodoroMinutes, setPomodoroMinutes] = useState(() => {
@@ -103,50 +107,67 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
 
   // Auto-start timers when app loads
   useEffect(() => {
-    // Auto-start both timers after a short delay
     const startTimersTimeout = setTimeout(() => {
       setIsPomodoroActive(true);
       setIsEyeCareActive(true);
       console.log("Auto-started Pomodoro and Eye Care timers");
-    }, 1500); // Short delay to ensure everything is loaded
+    }, 1500);
 
     return () => {
       clearTimeout(startTimersTimeout);
     };
   }, []);
 
-  // Save Pomodoro state to localStorage
+  // Save Pomodoro state to localStorage (without triggering notifications)
   useEffect(() => {
-    localStorage.setItem("pomodoroMinutes", pomodoroMinutes.toString());
-    localStorage.setItem("pomodoroSeconds", pomodoroSeconds.toString());
-    localStorage.setItem("isPomodoroActive", isPomodoroActive.toString());
-    localStorage.setItem("isPomodoroBreak", isPomodoroBreak.toString());
-    localStorage.setItem("pomodoroProgress", pomodoroProgress.toString());
-    localStorage.setItem("pomodoroDuration", pomodoroDuration.toString());
-    localStorage.setItem("pomodoroBreakDuration", pomodoroBreakDuration.toString());
+    if (!isUpdatingSettingsRef.current) {
+      localStorage.setItem("pomodoroMinutes", pomodoroMinutes.toString());
+      localStorage.setItem("pomodoroSeconds", pomodoroSeconds.toString());
+      localStorage.setItem("isPomodoroActive", isPomodoroActive.toString());
+      localStorage.setItem("isPomodoroBreak", isPomodoroBreak.toString());
+      localStorage.setItem("pomodoroProgress", pomodoroProgress.toString());
+      localStorage.setItem("pomodoroDuration", pomodoroDuration.toString());
+      localStorage.setItem("pomodoroBreakDuration", pomodoroBreakDuration.toString());
+    }
   }, [pomodoroMinutes, pomodoroSeconds, isPomodoroActive, isPomodoroBreak, pomodoroProgress, pomodoroDuration, pomodoroBreakDuration]);
 
-  // Save Eye Care state to localStorage
+  // Save Eye Care state to localStorage (without triggering notifications)
   useEffect(() => {
-    localStorage.setItem("eyeCareTimeElapsed", eyeCareTimeElapsed.toString());
-    localStorage.setItem("isEyeCareActive", isEyeCareActive.toString());
-    localStorage.setItem("isEyeCareResting", isEyeCareResting.toString());
-    localStorage.setItem("eyeCareRestProgress", eyeCareRestProgress.toString());
-    localStorage.setItem("eyeCareWorkDuration", eyeCareWorkDuration.toString());
-    localStorage.setItem("eyeCareRestDuration", eyeCareRestDuration.toString());
+    if (!isUpdatingSettingsRef.current) {
+      localStorage.setItem("eyeCareTimeElapsed", eyeCareTimeElapsed.toString());
+      localStorage.setItem("isEyeCareActive", isEyeCareActive.toString());
+      localStorage.setItem("isEyeCareResting", isEyeCareResting.toString());
+      localStorage.setItem("eyeCareRestProgress", eyeCareRestProgress.toString());
+      localStorage.setItem("eyeCareWorkDuration", eyeCareWorkDuration.toString());
+      localStorage.setItem("eyeCareRestDuration", eyeCareRestDuration.toString());
+    }
   }, [eyeCareTimeElapsed, isEyeCareActive, isEyeCareResting, eyeCareRestProgress, eyeCareWorkDuration, eyeCareRestDuration]);
 
-  // Function to update timer settings
+  // Function to update timer settings (with proper notification control)
   const updateTimerSettings = (settings: TimerSettings) => {
-    // Update Pomodoro settings
+    // Set flag to prevent localStorage notifications
+    isUpdatingSettingsRef.current = true;
+    
+    // Check if settings actually changed
+    const hasChanges = (
+      settings.pomodoroDuration !== pomodoroDuration ||
+      settings.pomodoroBreakDuration !== pomodoroBreakDuration ||
+      settings.eyeCareWorkDuration !== eyeCareWorkDuration ||
+      settings.eyeCareRestDuration !== eyeCareRestDuration
+    );
+    
+    if (!hasChanges) {
+      isUpdatingSettingsRef.current = false;
+      return; // No changes, don't show notification
+    }
+    
+    // Update settings
     setPomodoroDuration(settings.pomodoroDuration);
     setPomodoroBreakDuration(settings.pomodoroBreakDuration);
-    
-    // Update Eye Care settings
     setEyeCareWorkDuration(settings.eyeCareWorkDuration);
     setEyeCareRestDuration(settings.eyeCareRestDuration);
     
-    // Save settings to localStorage for persistence
+    // Save settings to localStorage
     localStorage.setItem("pomodoroDuration", settings.pomodoroDuration.toString());
     localStorage.setItem("pomodoroBreakDuration", settings.pomodoroBreakDuration.toString());
     localStorage.setItem("eyeCareWorkDuration", settings.eyeCareWorkDuration.toString());
@@ -161,8 +182,15 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
       resetEyeCareTimer();
     }
 
-    // Show success toast
-    sonnerToast.success("Timer settings updated successfully!");
+    // Show success toast only once when there are actual changes
+    sonnerToast.success("Timer settings updated successfully!", {
+      duration: 2500,
+    });
+    
+    // Reset flag after a delay
+    setTimeout(() => {
+      isUpdatingSettingsRef.current = false;
+    }, 100);
   };
 
   // Pomodoro Timer Logic
@@ -178,16 +206,13 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
         if (pomodoroSeconds === 0) {
           if (pomodoroMinutes === 0) {
             clearInterval(interval as NodeJS.Timeout);
-            // Timer completed
             if (isPomodoroBreak) {
-              // Use centered notification for attention-related alerts
               toast({
                 title: "Break time is over!",
                 description: "Time to get back to work!",
               });
               resetPomodoroTimer(false);
             } else {
-              // Use centered notification for attention-related alerts
               toast({
                 title: "Great job! Time for a break",
                 description: "Take a moment to rest your eyes and stretch.",
@@ -202,7 +227,6 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
           setPomodoroSeconds(pomodoroSeconds - 1);
         }
 
-        // Calculate progress
         const currentTotalSeconds = pomodoroMinutes * 60 + pomodoroSeconds;
         const newProgress = (currentTotalSeconds / totalSeconds) * 100;
         setPomodoroProgress(newProgress);
@@ -224,12 +248,10 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     if (isEyeCareActive) {
       interval = setInterval(() => {
         if (isEyeCareResting) {
-          // During rest period
           const newRestProgress = ((eyeCareRestDuration - eyeCareTimeElapsed) / eyeCareRestDuration) * 100;
           setEyeCareRestProgress(newRestProgress);
           
           if (eyeCareTimeElapsed >= eyeCareRestDuration) {
-            // Rest period ended - use centered notification for attention reminders
             toast({
               title: "Rest completed!",
               description: "Your eyes should feel refreshed now.",
@@ -239,9 +261,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
             setEyeCareTimeElapsed(eyeCareTimeElapsed + 1);
           }
         } else {
-          // During work period
           if (eyeCareTimeElapsed >= eyeCareWorkDuration) {
-            // Work period ended, start rest - use centered notification
             toast({
               title: "Time for an eye break!",
               description: "Look at something 20 feet away for 20 seconds.",
@@ -264,7 +284,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
   }, [isEyeCareActive, eyeCareTimeElapsed, isEyeCareResting, eyeCareRestDuration, 
       eyeCareWorkDuration, toast]);
 
-  // Pomodoro Timer functions
+  // Timer functions
   const startPomodoroTimer = () => setIsPomodoroActive(true);
   const pausePomodoroTimer = () => setIsPomodoroActive(false);
   
@@ -281,7 +301,6 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     setPomodoroProgress(100);
   };
   
-  // Eye Care Timer functions
   const startEyeCareTimer = () => setIsEyeCareActive(true);
   const pauseEyeCareTimer = () => setIsEyeCareActive(false);
   

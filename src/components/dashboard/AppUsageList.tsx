@@ -30,10 +30,12 @@ export function AppUsageList({ className }: AppUsageListProps) {
     const systemTray = SystemTrayService.getInstance();
     const userId = user?.id || 'guest';
     
+    // Ensure user is set for proper data isolation
+    systemTray.setCurrentUser(userId);
+    
     // Subscribe to app usage updates
     const handleAppUsageUpdate = (appUsage: Array<{name: string, time: number, type: string, lastActiveTime?: number}>) => {
-      // Ensure we're only using this user's data
-      console.log(`Received app usage update for user: ${userId}`);
+      console.log(`Received app usage update for user: ${userId}`, appUsage);
       
       // Convert to formatted app usage items
       const formattedAppUsage: AppUsageItem[] = appUsage.map(app => ({
@@ -43,18 +45,15 @@ export function AppUsageList({ className }: AppUsageListProps) {
         lastActiveTime: app.lastActiveTime
       }));
       
-      // Sort by most recent activity (lastActiveTime) first, then by time spent
+      // Sort by most recent activity first, then by time spent
       const sortedAppUsage = formattedAppUsage.sort((a, b) => {
-        // First sort by lastActiveTime if available
         if (a.lastActiveTime && b.lastActiveTime) {
           return b.lastActiveTime - a.lastActiveTime;
         } else if (a.lastActiveTime) {
-          return -1; // a has lastActiveTime, b doesn't
+          return -1;
         } else if (b.lastActiveTime) {
-          return 1; // b has lastActiveTime, a doesn't
+          return 1;
         }
-        
-        // Fall back to sorting by time spent
         return b.time - a.time;
       });
       
@@ -77,16 +76,15 @@ export function AppUsageList({ className }: AppUsageListProps) {
       }
     }, 2000);
     
-    // Clean up listener
     return () => {
       systemTray.removeAppUsageListener(handleAppUsageUpdate);
       clearTimeout(timeout);
     };
   }, [user]);
   
-  // Format milliseconds to time string (e.g. "2h 15m" or "45m" or "30s")
+  // Format milliseconds to time string
   const formatTime = (ms: number): string => {
-    if (ms < 1000) return "1s"; // Show at least 1 second
+    if (ms < 1000) return "1s";
     
     const seconds = Math.floor((ms / 1000) % 60);
     const minutes = Math.floor((ms / (1000 * 60)) % 60);
@@ -95,7 +93,7 @@ export function AppUsageList({ className }: AppUsageListProps) {
     if (hours > 0) {
       return `${hours}h ${minutes}m`;
     } else if (minutes > 0) {
-      return `${minutes}m ${seconds}s`;
+      return `${minutes}m`;
     } else {
       return `${seconds}s`;
     }
